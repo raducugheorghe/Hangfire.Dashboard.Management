@@ -4,10 +4,15 @@
 
 Hangfire.Core.Dashboard.Management provides a Management page in the default dashboard. It allows for manually creating jobs.
 
+**Based on**: [Hangfire.Core.Dashboard.Management](https://github.com/timohayes/Hangfire.Core.Dashboard.Management)
+
+
 ![management](management.PNG)
 
 ## Features
-
+ - **.NET Standard 2.0**
+ - **Dependency Injection**: supports Microsoft.Extensions.DependencyInjection. Jobs can register and use services.
+ - **Load jobs from folder**: You can load jobs from a folder (without referencing them in host). Extremely fragile without System.Addin :)
  - **Automatic page and menu generation**: Simple attributes on your job classes define management pages. 
  - **Automatic input generation**: Simple attributes on your properties allows for auto generation of input fields. (bool, int, text, DateTime)
  - **Support for IJobCancellationToken and PerformContext **: These job properties are automatically ignored and set null on job creation.
@@ -19,9 +24,31 @@ Hangfire.Core.Dashboard.Management provides a Management page in the default das
 ## Setup
 
 ```c#
-GlobalConfiguration.Configuration
-    .UseManagementPages(<assembly with IJob implementations>);    
+public void ConfigureServices(IServiceCollection services)
+{
+...
+	services.AddManagementPages(_configuration,_hostingEnvironment, Path.Combine(_hostingEnvironment.ContentRootPath, "Jobs"));  
+	
+	OR
+
+	services.AddManagementPages(_configuration, _hostingEnvironment, typeof(Hangfire.TestJobs.TestJobs).Assembly);
+...
+}
+
+
+public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+{
+...
+	app.UseHangfireServer();
+
+ 	app.UseHangfireDashboard();
+
+	app.UseManagementPages();
+...
+}
 ```
+
+
 ## Defining Pages
 
 Pages are defined and based on your Job classes. A Job class needs to implement IJob. The class should also have the attribute 
@@ -34,11 +61,15 @@ Each input property, other than IJobCancellationToken and PerformContext, should
 defines the input label and placeholder text for better readability. 
 
 ```c#
-[ManagementPage("Misc Jobs", "Miscellaneous", "misc")]
-public class MiscJobs : IJob
-{   
-	[DisplayName("Test")]    
-	[Description("Test that jobs are running with simple console output.")]
+ [ManagementPage("Test Jobs", "Test Jobs")]
+ public class TestJobs : IJob,IModuleInitializer
+ {
+    public void Init(IServiceCollection serviceCollection,string environmentName)
+    {
+    //Add services required by job
+    }
+    [DisplayName("Test")]    
+    [Description("Test that jobs are running with simple console output.")]
     [AutomaticRetry(Attempts = 0)]
     [DisableConcurrentExecution(90)]
     public void Test(PerformContext context, IJobCancellationToken token,
